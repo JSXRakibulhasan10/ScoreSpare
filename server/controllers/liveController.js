@@ -1,100 +1,194 @@
-import { fetchFromAPI } from "../utils/apiClient.js";
-import dotenv from "dotenv";
-dotenv.config();
+// controllers/liveController.js
+import axios from 'axios';
 
-const LIVE_API_BASE = "https://live-score-api.com/api-client";
-
-export const getLiveMatches = async (req, res) => {
+export const getLiveScores = async (req, res) => {
   try {
+    // Get API credentials from environment
     const apiKey = process.env.LIVE_SCORES_API_KEY;
     const apiSecret = process.env.LIVE_SCORES_API_SECRET;
 
-    // Check if API credentials exist
+    // Validate API credentials
     if (!apiKey || !apiSecret) {
-      return res.status(500).json({ 
-        message: "API credentials not configured properly" 
+      return res.status(400).json({
+        success: false,
+        message: 'API credentials missing. Please check your environment variables.'
       });
     }
 
-    // Live Score API endpoint for live matches
-    const data = await fetchFromAPI(`${LIVE_API_BASE}/matches/scores/live.json`, {
-      key: apiKey,
-      secret: apiSecret,
+    // Build request URL and parameters
+    const baseUrl = 'https://livescore-api.com/api-client/matches/live.json';
+    
+    console.log('Making request to Live Score API...');
+    console.log(`URL: ${baseUrl}?&key=${apiKey.substring(0, 8)}...&secret=${apiSecret.substring(0, 8)}...`);
+    
+    // Make API request
+    const response = await axios.get(baseUrl, {
+      params: {
+        key: apiKey,
+        secret: apiSecret
+      },
+      timeout: 15000, // 15 second timeout
+      headers: {
+        'User-Agent': 'ScoreSpare-App/1.0',
+        'Accept': 'application/json'
+      }
     });
 
-    // Log the raw response to debug
-    console.log('Raw API Response:', JSON.stringify(data, null, 2));
+    console.log('API Response Status:', response.status);
+    console.log('API Response Data:', JSON.stringify(response.data, null, 2));
 
-    // Check if API response is successful
-    if (!data || !data.success) {
-      return res.status(500).json({ 
-        message: "API request failed",
-        error: data?.error || "Unknown error"
+    // Check if we got a response
+    if (!response.data) {
+      return res.status(500).json({
+        success: false,
+        message: 'No data received from API'
       });
     }
 
-    // Check if matches exist - Live Score API structure
-    if (!data.data || !data.data.match || !Array.isArray(data.data.match)) {
-      return res.status(200).json({ 
-        matches: [],
-        message: "No live matches available" 
+    // Handle API error responses
+    if (response.data.success === false) {
+      return res.status(400).json({
+        success: false,
+        message: 'API returned error',
+        error: response.data.error || 'Unknown API error'
       });
     }
 
-    // Map the fields for Live Score API structure
-    const matches = data.data.match.map((match) => ({
-      id: match.id,
-      fixture_id: match.fixture_id,
-      homeTeam: {
-        id: match.home_id,
-        name: match.home_name || "N/A",
-        logo: match.home_image || "", // Live Score API might have images
-      },
-      awayTeam: {
-        id: match.away_id,
-        name: match.away_name || "N/A",
-        logo: match.away_image || "", // Live Score API might have images
-      },
-      score: match.score || "0 - 0",
-      status: match.status || "",
-      time: match.time || "",
-      minute: match.minute || "",
-      scheduled: match.scheduled || "",
-      location: match.location || "",
-      competition: {
-        id: match.competition_id,
-        name: match.competition_name || "",
-        country: match.country_name || ""
-      },
-      country: match.country_name || "",
-      league: match.league_name || "",
-      season: match.season || "",
-      round: match.round || "",
-      lastChanged: match.last_changed,
-      added: match.added,
-      stats: match.stats || null
-    }));
+    // Extract matches from response
+    let matches = [];
+    
+    if (response.data.data && response.data.data.match) {
+      const rawMatches = Array.isArray(response.data.data.match) 
+        ? response.data.data.match 
+        : [response.data.data.match];
 
-    res.json({ 
+      // Transform matches to our format based on Live Score API structure
+      matches = rawMatches.map(match => {
+        try {
+          return {
+            matchId: match?.id || null,
+            fixtureId: match?.fixture_id || null,
+            homeTeam: {
+              id: match?.home?.id || null,
+              name: match?.home?.name || 'Unknown Team',
+              logo: match?.home?.logo || null,
+              stadium: match?.home?.stadium || null,
+              countryId: match?.home?.country_id || null
+            },
+            awayTeam: {
+              id: match?.away?.id || null,
+              name: match?.away?.name || 'Unknown Team', 
+              logo: match?.away?.logo || null,
+              stadium: match?.away?.stadium || null,
+              countryId: match?.away?.country_id || null
+            },
+            score: {
+              current: match?.scores?.score || '0 - 0',
+              halfTime: match?.scores?.ht_score || '',
+              fullTime: match?.scores?.ft_score || '',
+              extraTime: match?.scores?.et_score || '',
+              penalties: match?.scores?.ps_score || ''
+            },
+            outcomes: {
+              halfTime: match?.outcomes?.half_time || null,
+              fullTime: match?.outcomes?.full_time || null,
+              extraTime: match?.outcomes?.extra_time || null,
+              penaltyShootout: match?.outcomes?.penalty_shootout || null
+            },
+            matchStatus: match?.status || 'unknown',
+            matchTime: match?.time || '',
+            scheduledTime: match?.scheduled || null,
+            competition: {
+              id: match?.competition?.id || null,
+              name: match?.competition?.name || 'Unknown Competition',
+              tier: match?.competition?.tier || null,
+              isLeague: match?.competition?.is_league || false,
+              isCup: match?.competition?.is_cup || false,
+              hasGroups: match?.competition?.has_groups || false,
+              nationalTeamsOnly: match?.competition?.national_teams_only || false,
+              active: match?.competition?.active || false
+            },
+            country: {
+              id: match?.country?.id || null,
+              name: match?.country?.name || null,
+              flag: match?.country?.flag || null,
+              uefaCode: match?.country?.uefa_code || null,
+              fifaCode: match?.country?.fifa_code || null,
+              isReal: match?.country?.is_real || false
+            },
+            venue: match?.location || null,
+            lastUpdated: match?.last_changed || null,
+            added: match?.added || null,
+            federation: match?.federation || null,
+            odds: {
+              live: {
+                home: match?.odds?.live?.['1'] || null,
+                draw: match?.odds?.live?.['X'] || null,
+                away: match?.odds?.live?.['2'] || null
+              },
+              pre: {
+                home: match?.odds?.pre?.['1'] || null,
+                draw: match?.odds?.pre?.['X'] || null,
+                away: match?.odds?.pre?.['2'] || null
+              }
+            },
+            urls: {
+              events: match?.urls?.events || null,
+              statistics: match?.urls?.statistics || null,
+              lineups: match?.urls?.lineups || null,
+              head2head: match?.urls?.head2head || null
+            }
+          };
+        } catch (error) {
+          console.error('Error processing match data:', error.message, match);
+          return null;
+        }
+      }).filter(match => match !== null); // Remove any null matches from processing errors
+    }
+
+    // Send successful response
+    res.json({
       success: true,
-      count: matches.length,
-      matches 
+      totalMatches: matches.length,
+      matches: matches,
+      fetchedAt: new Date().toISOString()
     });
 
   } catch (error) {
-    console.error("Error fetching live matches:", error);
+    console.error('Live Score API Error:', error.message);
     
-    // More specific error handling
-    if (error.response) {
-      return res.status(error.response.status).json({
-        message: "API request failed",
-        error: error.response.data || error.message
+    // Handle different types of errors
+    if (error.code === 'ENOTFOUND') {
+      return res.status(503).json({
+        success: false,
+        message: 'Unable to connect to Live Score API. Please check your internet connection.'
       });
     }
     
-    res.status(500).json({ 
-      message: "Failed to fetch live matches",
-      error: error.message 
+    if (error.code === 'ECONNABORTED') {
+      return res.status(408).json({
+        success: false,
+        message: 'Request timeout. Live Score API is taking too long to respond.'
+      });
+    }
+    
+    if (error.response) {
+      // API returned an error response
+      const status = error.response.status;
+      const errorData = error.response.data;
+      
+      return res.status(status).json({
+        success: false,
+        message: `Live Score API error (${status})`,
+        error: errorData || error.message
+      });
+    }
+    
+    // Generic error fallback
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch live matches',
+      error: error.message
     });
   }
 };
