@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import StandingsTable from "../components/standings/StandingsTables";
 import { getLeagueStandings } from "../services/footballApi";
 import { LEAGUES, AVAILABLE_SEASONS } from "../constants/leagues";
+import LeagueSelector from "../components/standings/LeagueSelector";
+import SeasonSelector from "../components/standings/SeasonSelector";
 
 // Simple in-memory cache for standings data
 const standingsCache = new Map();
@@ -85,62 +87,10 @@ const Standings = () => {
 
         {/* League Selector */}
         <div className="mb-8">
-          <div className="flex flex-wrap justify-center gap-4 mb-6">
-            {LEAGUES.map((league) => (
-              <button
-                key={league.code}
-                onClick={() => handleLeagueChange(league.code)}
-                className={`
-                  group relative px-6 py-4 rounded-2xl font-bold text-white transition-all duration-300 
-                  shadow-lg hover:shadow-2xl transform hover:-translate-y-1 hover:scale-105
-                  bg-gradient-to-r ${league.gradient}
-                  ${
-                    selectedLeague === league.code
-                      ? "ring-4 ring-white ring-opacity-60 scale-105"
-                      : "opacity-80 hover:opacity-100"
-                  }
-                `}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">{league.flag}</span>
-                  <div className="text-left">
-                    <div className="text-lg font-bold text-white drop-shadow-lg">
-                      {league.shortName}
-                    </div>
-                    <div className="text-sm text-white/90 drop-shadow-lg">
-                      {league.country}
-                    </div>
-                  </div>
-                </div>
-                {selectedLeague === league.code && (
-                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                  </div>
-                )}
-              </button>
-            ))}
-          </div>
+          <LeagueSelector handleLeagueChange={handleLeagueChange} selectedLeague={selectedLeague} LEAGUES={LEAGUES} />
 
           {/* Season Selector */}
-          <div className="flex justify-center">
-            <div className="bg-white rounded-xl shadow-md p-4 flex items-center gap-4">
-              <label htmlFor="season" className="text-gray-700 font-semibold">
-                Season:
-              </label>
-              <select
-                id="season"
-                value={selectedSeason}
-                onChange={handleSeasonChange}
-                className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white font-medium"
-              >
-                {AVAILABLE_SEASONS.map((season) => (
-                  <option key={season.value} value={season.value}>
-                    {season.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <SeasonSelector handleSeasonChange={handleSeasonChange} selectedSeason={selectedSeason} AVAILABLE_SEASONS={AVAILABLE_SEASONS} />
         </div>
 
         {/* Content Area */}

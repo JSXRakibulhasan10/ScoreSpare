@@ -63,6 +63,3 @@ export const AVAILABLE_SEASONS = [
   { value: '2023', label: '2023/24' },
 ];
 
-// Default selections
-export const DEFAULT_LEAGUE = 'PL';
-export const DEFAULT_SEASON = '2025';

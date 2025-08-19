@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import Header from "../components/chat/Header";
 
 const GeminiChatBot = () => {
   const [messages, setMessages] = useState([
@@ -12,9 +13,20 @@ const GeminiChatBot = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [showQuickQuestions, setShowQuickQuestions] = useState(true);
   const messagesEndRef = useRef(null);
 
-  const API_BASE_URL = 'http://localhost:5000'; // Your existing backend URL
+  const API_BASE_URL = 'http://localhost:5000';
+
+  useEffect(() => {
+    const hasVisited = localStorage.getItem('hasVisitedChatBot');
+    if (hasVisited) {
+      setShowQuickQuestions(false);
+    } else {
+      localStorage.setItem('hasVisitedChatBot', 'true');
+    }
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -102,24 +114,19 @@ const GeminiChatBot = () => {
 
   const handleQuickQuestion = (question) => {
     setInputMessage(question);
+    setShowQuickQuestions(false);
   };
 
   return (
     <div className="flex flex-col h-full w-full bg-gradient-to-br from-green-50 to-blue-50">
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-4 shadow-lg">
-        <div className="flex items-center space-x-3">
-          <div className="text-3xl">⚽</div>
-          <div>
-            <h1 className="text-xl font-bold">ScoreSpar Football Bot</h1>
-            <p className="text-green-100 text-sm">Your expert football companion</p>
-          </div>
-        </div>
-      </div>
+      {/* <Header /> */}
 
       {/* Quick Questions */}
-      <div className="p-4 bg-white border-b border-gray-200">
+      <div className={`p-4 bg-white border-b border-gray-200 transition-all duration-300 ${
+        !showQuickQuestions || isInputFocused ? 'opacity-0 h-0 overflow-hidden p-0' : 'opacity-100'
+      }`}>
         <p className="text-sm text-gray-600 mb-2">Quick questions:</p>
         <div className="flex flex-wrap gap-2">
           {quickQuestions.map((question, index) => (
@@ -186,6 +193,8 @@ const GeminiChatBot = () => {
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={handleKeyPress}
+            onFocus={() => setIsInputFocused(true)}
+            onBlur={() => setIsInputFocused(false)}
             placeholder="Ask me anything about football..."
             className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
             rows="1"
