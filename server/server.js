@@ -7,6 +7,7 @@ import competitionRoutes from "./routes/competitionRoutes.js";
 import fixturesRoutes from "./routes/fixturesRoutes.js"
 import uclRoutes from './routes/uclRoutes.js'
 import bplRoutes from './routes/bplRoutes.js'
+import chatbotRoutes from './routes/GeminiChatBotRoutes.js'
 
 dotenv.config();
 
@@ -33,7 +34,8 @@ app.use("/api/competitions", competitionRoutes);
 app.use('/api/fixtures', fixturesRoutes);
 
 app.use('/api/ucl', uclRoutes);
-app.use('/api/bpl', bplRoutes)
+app.use('/api/bpl', bplRoutes);
+app.use('/api/chatbot', chatbotRoutes);
 
 
 // Start server

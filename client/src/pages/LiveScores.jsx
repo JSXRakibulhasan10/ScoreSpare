@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, Wifi, WifiOff, Clock, MapPin, Trophy, Users, Activity, Zap } from 'lucide-react';
+import { RefreshCw, Wifi, WifiOff, Clock, MapPin, Trophy, Users, Activity, Zap, Filter, Globe } from 'lucide-react';
 import { getLiveMatches } from '../services/footballApi';
 
 const LiveScores = () => {
@@ -8,46 +8,69 @@ const LiveScores = () => {
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState('live'); // 'live' or 'finished'
+  const [activeLeague, setActiveLeague] = useState('all');
 
-  const fetchMatches = async (isRefresh = false) => {
-    try {
-      if (isRefresh) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
-      setError(null);
+  // Available leagues based on your backend
+  const leagues = [
+    { id: 'all', name: 'All Leagues', endpoint: '/api/live-matches/scores', icon: '🌍', color: 'from-blue-600 to-purple-600' },
+    { id: 'premier-league', name: 'Premier League', endpoint: '/api/live-matches/premier-league', icon: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', color: 'from-purple-600 to-purple-700' },
+    { id: 'la-liga', name: 'La Liga', endpoint: '/api/live-matches/la-liga', icon: '🇪🇸', color: 'from-red-500 to-yellow-500' },
+    { id: 'serie-a', name: 'Serie A', endpoint: '/api/live-matches/serie-a', icon: '🇮🇹', color: 'from-green-600 to-red-600' },
+    { id: 'bundesliga', name: 'Bundesliga', endpoint: '/api/live-matches/bundesliga', icon: '🇩🇪', color: 'from-red-600 to-yellow-500' },
+    { id: 'ligue-1', name: 'Ligue 1', endpoint: '/api/live-matches/ligue-1', icon: '🇫🇷', color: 'from-blue-600 to-red-500' },
+    { id: 'champions-league', name: 'Champions League', endpoint: '/api/live-matches/champions-league', icon: '🏆', color: 'from-blue-800 to-blue-900' }
+  ];
 
-      const data = await getLiveMatches();
-      
-      if (data.success) {
-        setAllMatches(data.matches || []);
-        setLastUpdated(new Date().toLocaleTimeString());
-      } else {
-        throw new Error(data.message || 'Failed to fetch matches');
-      }
-    } catch (err) {
-      setError(err.message);
-      console.error('Error fetching matches:', err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+const fetchMatches = async (isRefresh = false, leagueId = activeLeague) => {
+  try {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
     }
-  };
+    setError(null);
+
+  
+    const data = await getLiveMatches();
+
+    console.log("API Response data:", data);
+
+    if (data.success) {
+      const matches = data.matches || [];
+      console.log("Processed matches:", matches);
+      setAllMatches(matches);
+      setLastUpdated(new Date().toLocaleTimeString());
+    } else {
+      throw new Error(data.message || "API returned success: false");
+    }
+  } catch (err) {
+    console.error("Error fetching matches:", err);
+    setError(`Failed to load matches: ${err.message}`);
+    setAllMatches([]);
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+};
+
 
   useEffect(() => {
     fetchMatches();
     
-    // Auto-refresh every 30 seconds
+    // Auto-refresh every 60 seconds
     const interval = setInterval(() => {
       fetchMatches(true);
     }, 60000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [activeLeague]);
 
-  // Separate matches into live and finished
+  const handleLeagueChange = (leagueId) => {
+    setActiveLeague(leagueId);
+    fetchMatches(false, leagueId);
+  };
+
+  // Separate matches into live and finished based on your backend data structure
   const liveMatches = allMatches.filter(match => 
     ['live', 'in_play', 'half_time', 'ht'].includes(match.matchStatus?.toLowerCase())
   );
@@ -99,14 +122,20 @@ const LiveScores = () => {
   };
 
   const getScoreDisplay = (score) => {
-    // Handle different score formats
-    if (typeof score === 'string' && score.includes(' - ')) {
-      return score.split(' - ');
-    } else if (score?.current && score.current.includes(' - ')) {
-      return score.current.split(' - ');
-    } else if (score?.home !== undefined && score?.away !== undefined) {
+    // Handle your backend's score structure
+    if (score?.current && typeof score.current === 'string') {
+      // Format: "2 - 1" 
+      const parts = score.current.split(' - ');
+      if (parts.length === 2) {
+        return [parts[0].trim(), parts[1].trim()];
+      }
+    }
+    
+    // Handle object format
+    if (score?.home !== undefined && score?.away !== undefined) {
       return [score.home.toString(), score.away.toString()];
     }
+    
     return ['0', '0'];
   };
 
@@ -136,6 +165,53 @@ const LiveScores = () => {
     );
   };
 
+  const LeagueSelector = () => (
+    <div className="mb-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-3">
+          <Filter className="w-5 h-5 text-gray-600" />
+          <h2 className="text-lg font-semibold text-gray-900">Select League</h2>
+        </div>
+        <div className="text-sm text-gray-500">
+          {allMatches.length} matches found
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+        {leagues.map((league) => (
+          <button
+            key={league.id}
+            onClick={() => handleLeagueChange(league.id)}
+            className={`relative p-4 rounded-xl border-2 transition-all duration-200 hover:scale-105 group ${
+              activeLeague === league.id
+                ? 'border-blue-500 shadow-lg shadow-blue-100'
+                : 'border-gray-200 hover:border-blue-300'
+            }`}
+          >
+            <div className={`absolute inset-0 rounded-xl bg-gradient-to-r ${league.color} opacity-0 group-hover:opacity-5 transition-opacity ${
+              activeLeague === league.id ? 'opacity-10' : ''
+            }`}></div>
+            
+            <div className="relative z-10 text-center">
+              <div className="text-2xl mb-2">{league.icon}</div>
+              <div className={`text-xs font-medium transition-colors ${
+                activeLeague === league.id ? 'text-blue-700' : 'text-gray-700 group-hover:text-blue-600'
+              }`}>
+                {league.name}
+              </div>
+            </div>
+            
+            {activeLeague === league.id && (
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                <div className="w-2 h-2 bg-white rounded-full"></div>
+              </div>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
   const MatchCard = ({ match, index }) => {
     const scores = getScoreDisplay(match.score);
     const isLive = isLiveMatch(match.matchStatus);
@@ -144,10 +220,9 @@ const LiveScores = () => {
       <div 
         className={`bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-500 transform hover:scale-[1.02] border overflow-hidden ${
           isLive ? 'border-red-200 shadow-red-100' : 'border-gray-100'
-        } animate-fadeInUp`}
+        }`}
         style={{ 
-          animationDelay: `${index * 100}ms`,
-          animationFillMode: 'both'
+          animation: `fadeInUp 0.6s ease-out ${index * 100}ms both`
         }}
       >
         {/* Competition Header */}
@@ -292,6 +367,11 @@ const LiveScores = () => {
         <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
           {matches.length}
         </span>
+        {activeLeague !== 'all' && (
+          <span className="text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+            {leagues.find(l => l.id === activeLeague)?.name}
+          </span>
+        )}
       </div>
       
       {matches.length === 0 ? (
@@ -304,6 +384,11 @@ const LiveScores = () => {
             )}
           </div>
           <p className="text-gray-600">{emptyMessage}</p>
+          {activeLeague !== 'all' && (
+            <p className="text-gray-500 text-sm mt-2">
+              Try selecting "All Leagues" to see more matches
+            </p>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -317,6 +402,22 @@ const LiveScores = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      {/* Custom CSS for animations */}
+      <style>
+        {`
+          @keyframes fadeInUp {
+            from {
+              opacity: 0;
+              transform: translateY(30px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+        `}
+      </style>
+
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-20 backdrop-blur-sm bg-white/95">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -385,6 +486,9 @@ const LiveScores = () => {
           </div>
         ) : (
           <>
+            {/* League Selector */}
+            <LeagueSelector />
+
             {/* Stats Bar */}
             <div className="mb-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <div className="flex items-center justify-between">
@@ -409,7 +513,7 @@ const LiveScores = () => {
                   </div>
                 </div>
                 <div className="text-sm text-gray-500">
-                  Auto-refresh every 30s
+                  Auto-refresh every 60s
                 </div>
               </div>
             </div>
@@ -437,24 +541,6 @@ const LiveScores = () => {
           </>
         )}
       </div>
-
-      {/* Custom CSS for animations */}
-      <style jsx>{`
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        .animate-fadeInUp {
-          animation: fadeInUp 0.6s ease-out;
-        }
-      `}</style>
     </div>
   );
 };

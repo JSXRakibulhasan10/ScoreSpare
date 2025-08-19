@@ -53,7 +53,12 @@ export const getBPLStandings = async () => {
   return makeApiCall(url);
 };
 
-// Live Matches - ADD THIS FUNCTION
+export const getBPLiveScores = async () => {
+  const url = `${API_ENDPOINTS.BPL}/live-score`;
+  return makeApiCall(url)
+}
+
+// Live Matches
 export const getLiveMatches = async () => {
   const url = API_ENDPOINTS.LIVE_MATCHES;
   return makeApiCall(url);
