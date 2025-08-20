@@ -2,119 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { getBPLFixtures } from '../services/footballApi';
 import { getBPLStandings } from '../services/footballApi';
 
-// Mock API functions - replace with your actual BPL API calls
-// const getBPLFixtures = async (limit = 10) => {
-//   return new Promise((resolve) => {
-//     setTimeout(() => {
-//       resolve({
-//         competition: "Bangladesh Premier League",
-//         count: 6,
-//         fixtures: [
-//           {
-//             id: 1,
-//             homeTeam: { name: "Dhaka Abahani", logo: "https://via.placeholder.com/32" },
-//             awayTeam: { name: "Chittagong Abahani", logo: "https://via.placeholder.com/32" },
-//             date: "2025-08-15",
-//             time: "16:00",
-//             status: "SCHEDULED",
-//             venue: "Bangabandhu National Stadium"
-//           },
-//           {
-//             id: 2,
-//             homeTeam: { name: "Bashundhara Kings", logo: "https://via.placeholder.com/32" },
-//             awayTeam: { name: "Mohammedan SC", logo: "https://via.placeholder.com/32" },
-//             date: "2025-08-16",
-//             time: "18:30",
-//             status: "SCHEDULED",
-//             venue: "Sylhet District Stadium"
-//           }
-//         ]
-//       });
-//     }, 800);
-//   });
-// };
-
-// const getBPLStandings = async () => {
-//   return new Promise((resolve) => {
-//     setTimeout(() => {
-//       resolve({
-//         competition: "Bangladesh Premier League",
-//         standings: [
-//           {
-//             position: 1,
-//             team: { name: "Bashundhara Kings", logo: "https://via.placeholder.com/32" },
-//             matchesPlayed: 10,
-//             won: 8,
-//             drawn: 2,
-//             lost: 0,
-//             goalsFor: 24,
-//             goalsAgainst: 6,
-//             goalDifference: 18,
-//             points: 26
-//           },
-//           {
-//             position: 2,
-//             team: { name: "Dhaka Abahani", logo: "https://via.placeholder.com/32" },
-//             matchesPlayed: 10,
-//             won: 7,
-//             drawn: 1,
-//             lost: 2,
-//             goalsFor: 21,
-//             goalsAgainst: 10,
-//             goalDifference: 11,
-//             points: 22
-//           },
-//           {
-//             position: 3,
-//             team: { name: "Mohammedan SC", logo: "https://via.placeholder.com/32" },
-//             matchesPlayed: 10,
-//             won: 6,
-//             drawn: 2,
-//             lost: 2,
-//             goalsFor: 18,
-//             goalsAgainst: 12,
-//             goalDifference: 6,
-//             points: 20
-//           }
-//         ]
-//       });
-//     }, 800);
-//   });
-// };
-
-// const getBPLHistory = async () => {
-//   return new Promise((resolve) => {
-//     setTimeout(() => {
-//       resolve({
-//         competition: "Bangladesh Premier League",
-//         count: 4,
-//         history: [
-//           {
-//             id: 1,
-//             homeTeam: { name: "Bashundhara Kings", logo: "https://via.placeholder.com/32" },
-//             awayTeam: { name: "Dhaka Abahani", logo: "https://via.placeholder.com/32" },
-//             date: "2025-08-10",
-//             time: "16:00",
-//             status: "FINISHED",
-//             score: { home: 2, away: 1 },
-//             venue: "Bangabandhu National Stadium"
-//           },
-//           {
-//             id: 2,
-//             homeTeam: { name: "Mohammedan SC", logo: "https://via.placeholder.com/32" },
-//             awayTeam: { name: "Chittagong Abahani", logo: "https://via.placeholder.com/32" },
-//             date: "2025-08-09",
-//             time: "18:30",
-//             status: "FINISHED",
-//             score: { home: 1, away: 0 },
-//             venue: "Sylhet District Stadium"
-//           }
-//         ]
-//       });
-//     }, 800);
-//   });
-// };
-
 // BPL Fixture Card Component
 const BPLFixtureCard = ({ fixture }) => {
   const formatDate = (dateStr) => {
@@ -179,53 +66,8 @@ const BPLFixtureCard = ({ fixture }) => {
   );
 };
 
-// BPL History Card Component
-const BPLHistoryCard = ({ match }) => {
-  return (
-    <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          {/* Home Team */}
-          <div className="flex items-center gap-3 flex-1">
-            <img 
-              src={match.homeTeam.logo} 
-              alt={match.homeTeam.name}
-              className="w-8 h-8 object-contain"
-              onError={(e) => { e.target.style.display = 'none' }}
-            />
-            <span className="font-semibold text-gray-800">
-              {match.homeTeam.name}
-            </span>
-          </div>
 
-          {/* Score */}
-          <div className="px-4">
-            <div className="bg-gray-100 px-3 py-1 rounded-lg font-bold text-lg">
-              {match.score.home} - {match.score.away}
-            </div>
-          </div>
 
-          {/* Away Team */}
-          <div className="flex items-center gap-3 flex-1 justify-end">
-            <span className="font-semibold text-gray-800">
-              {match.awayTeam.name}
-            </span>
-            <img 
-              src={match.awayTeam.logo} 
-              alt={match.awayTeam.name}
-              className="w-8 h-8 object-contain"
-              onError={(e) => { e.target.style.display = 'none' }}
-            />
-          </div>
-        </div>
-
-        <div className="text-center text-sm text-gray-500">
-          {new Date(match.date).toLocaleDateString('en-GB')} • {match.venue}
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // BPL Standings Table Component
 const BPLStandingsTable = ({ standings }) => {
@@ -315,9 +157,6 @@ const BPL = () => {
           break;
         case 'standings':
           result = await getBPLStandings();
-          break;
-        case 'history':
-          result = await getBPLHistory();
           break;
         default:
           throw new Error('Invalid section');
