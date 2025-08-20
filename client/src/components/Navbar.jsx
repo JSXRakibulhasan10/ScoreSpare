@@ -7,7 +7,6 @@ const navItems = [
   { name: 'Standings', path: '/standings' },
   { name: 'Fixtures', path: '/fixtures' },
   { name: 'Live Scores', path: '/live' },
-  { name: 'UCL', path: '/ucl', special: 'ucl' },
   { name: 'BPL', path: '/bpl', special: 'bpl' },
 ];
 
@@ -36,21 +35,6 @@ export default function Navbar() {
         <ul className="hidden md:flex space-x-2 text-sm font-medium">
           {navItems.map(({ name, path, special }) => {
             const isActive = location.pathname === path;
-
-            if (special === 'ucl') {
-              return (
-                <li key={path} className="relative group">
-                  <Link
-                    to={path}
-                    onClick={closeMenu}
-                    className="px-4 py-2 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-400 hover:to-blue-400 text-white font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-[0_0_15px_rgba(138,43,226,0.7)]"
-                  >
-                    {name}
-                  </Link>
-                  <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-purple-400 to-blue-400 transition-all duration-300 group-hover:w-full"></span>
-                </li>
-              );
-            }
 
             if (special === 'bpl') {
               return (
@@ -115,7 +99,7 @@ export default function Navbar() {
             const isActive = location.pathname === path;
 
             let gradientClasses = '';
-            if (special === 'ucl') gradientClasses = 'bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-400 hover:to-blue-400';
+            
             if (special === 'bpl') gradientClasses = 'bg-gradient-to-r from-green-500 to-red-500 hover:from-green-400 hover:to-red-400';
 
             return (

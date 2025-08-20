@@ -77,8 +77,7 @@ class FixturesController {
                     crest: match.awayTeam.crest
                 },
                 score: match.score,
-                odds: match.odds,
-                referees: match.referees
+                
             }));
 
             res.json({

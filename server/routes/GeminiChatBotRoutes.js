@@ -4,15 +4,9 @@ import { handleChatMessage, getChatbotStatus } from '../controllers/GeminiChatBo
 
 const router = express.Router();
 
-
-
 router.post('/message', handleChatMessage);
 
-/**
- * @route GET /api/chatbot/status
- * @desc Get chatbot status and capabilities
- * @returns { success: boolean, status: string, message: string, capabilities: array, timestamp: string }
- */
+//ChatBot status route
 router.get('/status', getChatbotStatus);
 
 export default router;

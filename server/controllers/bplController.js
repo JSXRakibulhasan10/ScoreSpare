@@ -1,281 +1,168 @@
 import axios from 'axios';
 
-// Create axios client for LiveScore API
+// Configuration
+const BPL_COMPETITION_ID = 432;
+const BASE_URL = 'https://livescore-api.com/api-client';
+
+// Create reusable axios client
 const liveScoreClient = axios.create({
-    baseURL: 'https://livescore-api.com/api-client',
-    // Remove headers from here - we'll pass them as query params
+    baseURL: BASE_URL,
 });
 
-class BPLController {
-    // Get Bangladesh Premier League fixtures
-    async getBPLFixtures(req, res) {
+// Utility Functions
+const validateCredentials = () => {
+    const apiKey = process.env.LIVE_SCORES_API_KEY;
+    const apiSecret = process.env.LIVE_SCORES_API_SECRET;
+    
+    if (!apiKey || !apiSecret) {
+        throw new Error('API credentials missing');
+    }
+    
+    return { apiKey, apiSecret };
+};
+
+const createBaseParams = () => {
+    const { apiKey, apiSecret } = validateCredentials();
+    return {
+        competition_id: BPL_COMPETITION_ID,
+        key: apiKey,
+        secret: apiSecret
+    };
+};
+
+const handleApiError = (error, res, operation) => {
+    console.error(`Error ${operation}:`, error.response?.data || error.message);
+    
+    const statusMap = {
+        401: { error: 'API Authentication Failed', message: 'Check your LiveScore API key and secret' },
+        403: { error: 'API Access Forbidden', message: 'Your API subscription may not include this endpoint' }
+    };
+    
+    const status = error.response?.status;
+    if (statusMap[status]) {
+        return res.status(status).json(statusMap[status]);
+    }
+    
+    return res.status(500).json({
+        error: 'Internal Server Error',
+        message: `Failed to ${operation}`,
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+};
+
+// Generic API caller
+const callApi = async (endpoint, additionalParams = {}) => {
+    const params = { ...createBaseParams(), ...additionalParams };
+    const response = await liveScoreClient.get(endpoint, { params });
+    return response.data;
+};
+
+// Transform functions (only essential data)
+const transformTeam = (team) => ({
+    id: team?.id || team?.team_id,
+    name: team?.name || team?.team_name,
+    logo: team?.logo || team?.team_logo
+});
+
+const transformMatch = (match) => ({
+    id: match.id,
+    date: match.date,
+    time: match.time,
+    status: match.status,
+    homeTeam: transformTeam(match.home_team || match.homeTeam),
+    awayTeam: transformTeam(match.away_team || match.awayTeam),
+    score: {
+        home: match.home_score || match.homeScore || match.score?.home || 0,
+        away: match.away_score || match.awayScore || match.score?.away || 0
+    },
+    venue: match.venue,
+    round: match.round
+});
+
+const transformFixture = (match) => ({
+    ...transformMatch(match),
+    season: match.season
+});
+
+const transformLiveMatch = (match) => ({
+    ...transformMatch(match),
+    minute: match.minute || match.elapsed,
+    events: match.events || []
+});
+
+const transformStanding = (team) => ({
+    position: team.position,
+    team: transformTeam(team),
+    matchesPlayed: team.matches || team.played,
+    won: team.won || team.wins,
+    drawn: team.drawn || team.draws,
+    lost: team.lost || team.losses,
+    goalsFor: team.goals_for || team.goalsFor,
+    goalsAgainst: team.goals_against || team.goalsAgainst,
+    goalDifference: team.goal_difference || team.goalDifference,
+    points: team.points,
+    form: team.form
+});
+
+// Generic controller function
+const createBPLHandler = (endpoint, dataKey, transformFn, responseName) => {
+    return async (req, res) => {
         try {
-            const { limit = 10, date } = req.query;
-
-            const params = {
-                competition_id: 432, // BPL competition ID
-                key: process.env.LIVE_SCORES_API_KEY,
-                secret: process.env.LIVE_SCORES_API_SECRET
-            };
+            const additionalParams = {};
             
-            if (date) params.date = date; // Format: YYYY-MM-DD
-
-            // Use the correct endpoint path
-            const response = await liveScoreClient.get('/fixtures/matches.json', {
-                params
-            });
-
-            // Handle potential different response structures
-            let fixtures = response.data?.data?.fixtures || response.data?.fixtures || response.data || [];
-
-            // Apply limit
+            // Handle common query parameters
+            if (req.query.limit) additionalParams.limit = req.query.limit;
+            if (req.query.date) additionalParams.date = req.query.date;
+            if (req.query.from_date) additionalParams.from_date = req.query.from_date;
+            if (req.query.to_date) additionalParams.to_date = req.query.to_date;
+            
+            const data = await callApi(endpoint, additionalParams);
+            
+            // Extract data from various possible response structures
+            let items = data?.data?.[dataKey] || data?.[dataKey] || data || [];
+            
+            // Apply limit if specified and not handled by API
+            const { limit } = req.query;
             if (limit && !isNaN(parseInt(limit))) {
-                fixtures = fixtures.slice(0, parseInt(limit));
+                items = items.slice(0, parseInt(limit));
             }
-
-            // Transform BPL data to match your app structure
-            const transformedFixtures = fixtures.map(match => ({
-                id: match.id,
-                competition: {
-                    name: "Bangladesh Premier League",
-                    country: "Bangladesh",
-                    season: match.season
-                },
-                date: match.date,
-                time: match.time,
-                status: match.status,
-                homeTeam: {
-                    id: match.home_team?.id || match.homeTeam?.id,
-                    name: match.home_team?.name || match.homeTeam?.name,
-                    logo: match.home_team?.logo || match.homeTeam?.logo
-                },
-                awayTeam: {
-                    id: match.away_team?.id || match.awayTeam?.id,
-                    name: match.away_team?.name || match.awayTeam?.name,
-                    logo: match.away_team?.logo || match.awayTeam?.logo
-                },
-                venue: match.venue,
-                round: match.round
-            }));
-
+            
+            // Transform data
+            const transformedItems = items.map(transformFn);
+            
             res.json({
                 competition: "Bangladesh Premier League",
-                count: transformedFixtures.length,
-                fixtures: transformedFixtures
+                count: transformedItems.length,
+                [responseName]: transformedItems
             });
-
-        } catch (error) {
-            console.error('Error fetching BPL fixtures:', error.response?.data || error.message);
             
-            if (error.response?.status === 401) {
-                return res.status(401).json({
-                    error: 'API Authentication Failed',
-                    message: 'Check your LiveScore API key and secret'
-                });
-            }
-
-            if (error.response?.status === 403) {
-                return res.status(403).json({
-                    error: 'API Access Forbidden',
-                    message: 'Your API subscription may not include this endpoint'
-                });
-            }
-
-            res.status(500).json({
-                error: 'Internal Server Error',
-                message: 'Failed to fetch BPL fixtures',
-                details: process.env.NODE_ENV === 'development' ? error.message : undefined
-            });
+        } catch (error) {
+            return handleApiError(error, res, `fetch BPL ${responseName}`);
         }
-    }
+    };
+};
 
-    // Get BPL standings
+class BPLController {
+    // Create all handlers using the generic function
+    getBPLFixtures = createBPLHandler('/fixtures/matches.json', 'fixtures', transformFixture, 'fixtures');
+    getBPLLiveMatches = createBPLHandler('/matches/live.json', 'matches', transformLiveMatch, 'liveMatches');
+    getBPLHistory = createBPLHandler('/scores/history.json', 'matches', transformMatch, 'history');
+    
+    // Standings needs special handling due to different response structure
     async getBPLStandings(req, res) {
         try {
-            const params = {
-                competition_id: 432, // BPL competition ID
-                key: process.env.LIVE_SCORES_API_KEY,
-                secret: process.env.LIVE_SCORES_API_SECRET
-            };
-
-            const response = await liveScoreClient.get('/leagues/table.json', {
-                params
-            });
-
-            // Handle potential different response structures
-            const standings = response.data?.data?.table || response.data?.table || response.data || [];
-
-            const transformedStandings = standings.map(team => ({
-                position: team.position,
-                team: {
-                    id: team.team_id || team.id,
-                    name: team.name || team.team_name,
-                    logo: team.logo || team.team_logo
-                },
-                matchesPlayed: team.matches || team.played,
-                won: team.won || team.wins,
-                drawn: team.drawn || team.draws,
-                lost: team.lost || team.losses,
-                goalsFor: team.goals_for || team.goalsFor,
-                goalsAgainst: team.goals_against || team.goalsAgainst,
-                goalDifference: team.goal_difference || team.goalDifference,
-                points: team.points,
-                form: team.form
-            }));
-
+            const data = await callApi('/leagues/table.json');
+            const standings = data?.data?.table || data?.table || data || [];
+            
+            const transformedStandings = standings.map(transformStanding);
+            
             res.json({
                 competition: "Bangladesh Premier League",
                 standings: transformedStandings
             });
-
+            
         } catch (error) {
-            console.error('Error fetching BPL standings:', error.response?.data || error.message);
-            
-            if (error.response?.status === 401) {
-                return res.status(401).json({
-                    error: 'API Authentication Failed',
-                    message: 'Check your LiveScore API key and secret'
-                });
-            }
-
-            res.status(500).json({
-                error: 'Internal Server Error',
-                message: 'Failed to fetch BPL standings',
-                details: process.env.NODE_ENV === 'development' ? error.message : undefined
-            });
-        }
-    }
-
-    // Get BPL live matches
-    async getBPLLiveMatches(req, res) {
-        try {
-            const params = {
-                competition_id: 432, // BPL competition ID
-                key: process.env.LIVE_SCORES_API_KEY,
-                secret: process.env.LIVE_SCORES_API_SECRET
-            };
-
-            // Use the correct endpoint for live matches
-            const response = await liveScoreClient.get('/matches/live.json', {
-                params
-            });
-
-            // Handle potential different response structures
-            const liveMatches = response.data?.data?.matches || response.data?.matches || response.data || [];
-
-            const transformedMatches = liveMatches.map(match => ({
-                id: match.id,
-                date: match.date,
-                time: match.time,
-                status: match.status,
-                minute: match.minute || match.elapsed,
-                homeTeam: {
-                    id: match.home_team?.id || match.homeTeam?.id,
-                    name: match.home_team?.name || match.homeTeam?.name,
-                    logo: match.home_team?.logo || match.homeTeam?.logo
-                },
-                awayTeam: {
-                    id: match.away_team?.id || match.awayTeam?.id,
-                    name: match.away_team?.name || match.awayTeam?.name,
-                    logo: match.away_team?.logo || match.awayTeam?.logo
-                },
-                score: {
-                    home: match.home_score || match.homeScore || match.score?.home,
-                    away: match.away_score || match.awayScore || match.score?.away
-                },
-                events: match.events || [] // Goals, cards, etc.
-            }));
-
-            res.json({
-                competition: "Bangladesh Premier League",
-                count: transformedMatches.length,
-                liveMatches: transformedMatches
-            });
-
-        } catch (error) {
-            console.error('Error fetching BPL live matches:', error.response?.data || error.message);
-            
-            if (error.response?.status === 401) {
-                return res.status(401).json({
-                    error: 'API Authentication Failed',
-                    message: 'Check your LiveScore API key and secret'
-                });
-            }
-
-            res.status(500).json({
-                error: 'Internal Server Error',
-                message: 'Failed to fetch BPL live matches',
-                details: process.env.NODE_ENV === 'development' ? error.message : undefined
-            });
-        }
-    }
-
-
-    // Get BPL match history
-    async getBPLHistory(req, res) {
-        try {
-            const { from_date, to_date } = req.query;
-            
-            const params = {
-                competition_id: 432, // BPL competition ID
-                key: process.env.LIVE_SCORES_API_KEY,
-                secret: process.env.LIVE_SCORES_API_SECRET
-            };
-
-            if (from_date) params.from_date = from_date;
-            if (to_date) params.to_date = to_date;
-
-            const response = await liveScoreClient.get('/scores/history.json', {
-                params
-            });
-
-            // Handle potential different response structures
-            const history = response.data?.data?.matches || response.data?.matches || response.data || [];
-
-            const transformedHistory = history.map(match => ({
-                id: match.id,
-                date: match.date,
-                time: match.time,
-                status: match.status,
-                homeTeam: {
-                    id: match.home_team?.id || match.homeTeam?.id,
-                    name: match.home_team?.name || match.homeTeam?.name,
-                    logo: match.home_team?.logo || match.homeTeam?.logo
-                },
-                awayTeam: {
-                    id: match.away_team?.id || match.awayTeam?.id,
-                    name: match.away_team?.name || match.awayTeam?.name,
-                    logo: match.away_team?.logo || match.awayTeam?.logo
-                },
-                score: {
-                    home: match.home_score || match.homeScore || match.score?.home,
-                    away: match.away_score || match.awayScore || match.score?.away
-                },
-                venue: match.venue,
-                round: match.round
-            }));
-
-            res.json({
-                competition: "Bangladesh Premier League",
-                count: transformedHistory.length,
-                history: transformedHistory
-            });
-
-        } catch (error) {
-            console.error('Error fetching BPL history:', error.response?.data || error.message);
-            
-            if (error.response?.status === 401) {
-                return res.status(401).json({
-                    error: 'API Authentication Failed',
-                    message: 'Check your LiveScore API key and secret'
-                });
-            }
-
-            res.status(500).json({
-                error: 'Internal Server Error',
-                message: 'Failed to fetch BPL history',
-                details: process.env.NODE_ENV === 'development' ? error.message : undefined
-            });
+            return handleApiError(error, res, 'fetch BPL standings');
         }
     }
 }

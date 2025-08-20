@@ -1,5 +1,6 @@
 import React from 'react'
 
+
 const StatusBar = ({liveMatches, finishedMatches, allMatches}) => {
   return (
    <div className="mb-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
