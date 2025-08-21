@@ -17,6 +17,7 @@ const GeminiChatBot = () => {
   const [showQuickQuestions, setShowQuickQuestions] = useState(true);
   const messagesEndRef = useRef(null);
 
+  //effect to show suggested question
   useEffect(() => {
     const hasVisited = localStorage.getItem("hasVisitedChatBot");
     if (hasVisited) {
@@ -121,8 +122,6 @@ const GeminiChatBot = () => {
 
   return (
     <div className="flex flex-col h-full w-full bg-gradient-to-br from-green-50 to-blue-50">
-      {/* Header */}
-      {/* <Header /> */}
 
       {/* Quick Questions */}
       <div
